@@ -1,27 +1,217 @@
-# IDX XBRL Account Extractor
+# 📊 IDX XBRL Account Extractor
 
-Aplikasi desktop untuk otomasi ekstraksi data keuangan emiten IDX dari dokumen Inline XBRL.
+> **Otomasi Ekstraksi Data Keuangan XBRL — Bursa Efek Indonesia**
 
-## Ringkasan
+[![Python](https://img.shields.io/badge/Python-3.13%2B-blue?logo=python&logoColor=white)](https://www.python.org/)
+[![Platform](https://img.shields.io/badge/Platform-Windows-0078D4?logo=windows&logoColor=white)](https://www.microsoft.com/windows/)
+[![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
+[![Status](https://img.shields.io/badge/Status-Active-brightgreen)](https://github.com/Memyer/idx-xbrl-account-extractor)
 
-Proyek ini menyediakan pipeline end-to-end untuk:
-- Membuat daftar link laporan berdasarkan tahun dan periode.
-- Mengunduh berkas ZIP XBRL.
-- Mengekstrak isi ZIP.
-- Mengambil akun-akun keuangan tertentu dari HTML XBRL.
-- Membersihkan nilai negatif pada kolom yang dipilih.
-- Menormalisasi nilai akun menjadi Full Amount IDR.
-- Mengekspor hasil ke CSV dan Excel.
+---
 
-## Fitur Utama
+## ✨ Highlight
 
-- GUI berbasis CustomTkinter dengan 5 tab: Pengaturan, Pilih Akun, Jalankan, Log, Tentang.
-- Pemilihan akun fleksibel per metrik.
-- Progress per tahap dan kontrol eksekusi (run per step atau jalankan semua).
-- Export hasil terpisah:
-  - RAW (sebelum konversi Full IDR).
-  - FULL IDR (sesudah konversi).
-- Build menjadi satu file aplikasi Windows (.exe) dengan PyInstaller.
+Ekstraksi data keuangan emiten **BEI** secara otomatis dari dokumen **Inline XBRL** dengan:
+
+- ✅ **GUI Desktop Modern** – Interface intuitif dengan CustomTkinter.
+- ✅ **Pilih Akun Fleksibel** – 120+ akun keuangan terstruktur per kategori.
+- ✅ **Pipeline Otomatis** – 7 tahap from download sampai export.
+- ✅ **Dual Output** – RAW (asli) + FULL IDR (terkonversi) dalam CSV & Excel.
+- ✅ **Anti-Bot Smart** – Session handling + header matching untuk download stabil.
+- ✅ **One-Click Build** – Jadikan satu file .exe siap distribusi.
+
+---
+
+## 🎯 Fitur Utama
+
+### 1. 🔧 Pengaturan Fleksibel
+- Konfigurasi tahun laporan dan periode (Q1–Q4, Tahunan).
+- Folder output custom.
+- Kurs USD ke IDR adjustable.
+- Opsi pembersihan data per kolom.
+
+### 2. 📋 Selector Akun Cerdas
+- **120+ akun** dari 4 kategori:
+  - Informasi Umum
+  - Neraca (Balance Sheet)
+  - Laba Rugi (Income Statement)
+  - Arus Kas (Cash Flow)
+- Search real-time.
+- Tambah/hapus pilihan per item atau batch.
+
+### 3. 🚀 Pipeline 7 Tahap
+| # | Tahap | Icon | Deskripsi |
+|---|-------|------|-----------|
+| 1 | Generate Links | 🔗 | Buat daftar link per emiten (ticker IDX). |
+| 2 | Download XBRL | ⬇️ | Unduh berkas XBRL ZIP dengan session anti-bot. |
+| 3 | Ekstrak ZIP | 📦 | Ekstrak ZIP ke folder XBRL. |
+| 4 | Ekstrak Akun | 🔍 | Parse HTML, ambil akun yang dipilih → CSV. |
+| 5 | Bersihkan Data | 🧹 | Ubah nilai negatif sesuai setting. |
+| 6 | Normalisasi IDR | 💱 | Konversi Full Amount sesuai pembulatan + mata uang. |
+| 7 | Export CSV+Excel | 📊 | Simpan 2 format: RAW + FULL IDR. |
+
+### 4. 📁 Output Terstruktur
+Hasil tersimpan otomatis di **ExtractedData_XBRL/**:
+
+```
+00_SUMMARY_all_companies_raw.csv          ← Data asli (belum konversi)
+00_SUMMARY_all_companies_raw.xlsx
+
+00_SUMMARY_all_companies_full_idr.csv     ← Data konversi Full IDR
+00_SUMMARY_all_companies_full_idr.xlsx
+```
+
+---
+
+## 🏗️ Struktur Proyek
+
+```
+idx-xbrl-account-extractor/
+├── main.py                    # Entry point aplikasi
+├── gui/
+│   ├── app.py                 # UI desktop + orkestrasi pipeline
+│   └── __init__.py
+├── core/
+│   ├── link_generator.py      # Pembuatan link IDX
+│   ├── downloader.py          # Download XBRL ZIP (anti-bot)
+│   ├── unzipper.py            # Ekstraksi ZIP
+│   ├── xbrl_extractor.py      # Parse & ekstrak akun XBRL
+│   ├── data_cleaner.py        # Pembersihan nilai negatif
+│   ├── amount_normalizer.py   # Konversi Full IDR
+│   ├── csv_exporter.py        # Export ke Excel
+│   └── __init__.py
+├── build.bat                  # Script build Windows
+├── requirements.txt           # Dependencies
+├── README.md                  # Dokumentasi (file ini)
+└── companies.txt              # Daftar emiten IDX
+```
+
+---
+
+## 📥 Instalasi & Cara Pakai
+
+### Opsi A: Jalankan dari Source (Development)
+
+**Prasyarat:**
+- Windows 10/11
+- Python 3.13+
+
+**Langkah:**
+
+```bash
+# 1. Clone repository
+git clone https://github.com/Memyer/idx-xbrl-account-extractor.git
+cd idx-xbrl-account-extractor/app
+
+# 2. Install dependencies
+pip install -r requirements.txt
+
+# 3. Jalankan aplikasi
+python main.py
+```
+
+### Opsi B: Aplikasi Siap Pakai (.exe)
+
+Unduh file **IDX_Superapp.exe** dari [Releases](https://github.com/Memyer/idx-xbrl-account-extractor/releases) dan jalankan langsung.
+
+---
+
+## 🔨 Build Menjadi Aplikasi Windows
+
+Proses build otomatis menggunakan PyInstaller.
+
+### Cara Cepat:
+
+```bash
+cd app
+build.bat
+```
+
+Output: `dist/IDX_Superapp.exe`
+
+### Manual:
+
+```bash
+python -m pip uninstall -y pathlib  # Jika perlu
+python -m PyInstaller \
+  --onefile --windowed \
+  --name IDX_Superapp \
+  --add-data "../akun_indonesia.txt;." \
+  --add-data "core;core" \
+  --add-data "gui;gui" \
+  --hidden-import curl_cffi \
+  --hidden-import bs4 \
+  --hidden-import pandas \
+  --hidden-import openpyxl \
+  main.py
+```
+
+---
+
+## ⚠️ Troubleshooting
+
+### Build PyInstaller Gagal: "pathlib is incompatible"
+
+```bash
+python -m pip uninstall -y pathlib
+```
+
+Lalu ulangi build.
+
+### Error Download: "Bot Detected"
+
+- Pastikan **Kurs USD** terisi di tab Pengaturan.
+- Cek internet koneksi.
+- Tunggu beberapa menit dan coba ulang.
+
+---
+
+## 📊 Contoh Workflow
+
+1. Buka aplikasi → tab **Pengaturan**.
+2. Atur tahun, periode, dan kurs USD.
+3. Tab **Pilih Akun** → pilih akun yang diinginkan (~20–50 akun).
+4. Tab **Jalankan** → klik tombol hijau **▶ Jalankan Semua**.
+5. Monitor progress di **Log**.
+6. Hasil otomatis di folder **ExtractedData_XBRL/**.
+7. Buka file CSV/Excel untuk analisis lanjut.
+
+---
+
+## 🛠️ Tech Stack
+
+| Komponen | Library |
+|----------|---------|
+| Desktop UI | CustomTkinter |
+| Data Processing | Pandas, NumPy |
+| Web Scraping | curl_cffi, BeautifulSoup4 |
+| Excel Export | openpyxl |
+| Build | PyInstaller |
+| Sumber Data | idx.co.id (Inline XBRL) |
+
+---
+
+## 📝 Lisensi
+
+MIT License — Bebas digunakan, modifikasi, dan distribusikan.
+
+---
+
+## 🤝 Kontribusi
+
+Issues dan pull requests welcome! Silakan buka issue untuk bug report atau feature request.
+
+---
+
+## 📞 Kontak & Info
+
+- **Repository**: https://github.com/Memyer/idx-xbrl-account-extractor
+- **Author**: Memyer
+- **Last Updated**: April 1, 2026
+
+---
+
+**Made with ❤️ untuk komunitas data keuangan Indonesia.**
 
 ## Alur Pipeline
 
