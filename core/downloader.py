@@ -20,20 +20,9 @@ except ImportError:
 
 MAX_RETRIES = 4
 
-# Rotasi versi Chrome — tiap versi punya TLS fingerprint berbeda
+# Rotasi versi Chrome — hanya chrome120 dan chrome124 yang diterima Cloudflare IDX.
+# chrome110 dan chrome116 selalu 403 (diblokir permanen oleh Cloudflare IDX).
 CHROME_PROFILES = {
-    "chrome110": {
-        "impersonate": "chrome110",
-        "sec-ch-ua": '"Chromium";v="110", "Not A(Brand";v="24", "Google Chrome";v="110"',
-        "sec-ch-ua-mobile": "?0",
-        "sec-ch-ua-platform": '"Windows"',
-    },
-    "chrome116": {
-        "impersonate": "chrome116",
-        "sec-ch-ua": '"Google Chrome";v="116", "Not)A;Brand";v="24", "Chromium";v="116"',
-        "sec-ch-ua-mobile": "?0",
-        "sec-ch-ua-platform": '"Windows"',
-    },
     "chrome120": {
         "impersonate": "chrome120",
         "sec-ch-ua": '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
@@ -102,17 +91,27 @@ def _create_session(chrome_key: str, log_callback=None) -> tuple:
     }
 
     session = cffi_requests.Session(impersonate=chrome_key)
-    warmup_url = random.choice(WARMUP_URLS)
-    try:
-        resp = session.get(warmup_url, headers=warmup_headers, timeout=15, allow_redirects=True)
-        if resp.status_code == 200:
-            log(f"  🔥 Session warm-up OK [{chrome_key}] — cookies: {len(session.cookies)} set")
+
+    # Warm-up bertahap: kunjungi SEMUA halaman IDX secara berurutan
+    # agar server melihat browsing history yang natural sebelum menerima download
+    for i, warmup_url in enumerate(WARMUP_URLS):
+        # Request pertama: Sec-Fetch-Site=none (cold open), berikutnya: cross-site → same-origin
+        if i == 0:
+            wu_headers = {**warmup_headers, "Sec-Fetch-Site": "none"}
         else:
-            log(f"  ⚠ Warm-up [{resp.status_code}] — lanjut tanpa cookies")
-    except Exception as e:
-        log(f"  ⚠ Warm-up error: {str(e)[:60]}")
-    
-    time.sleep(random.uniform(0.5, 1.5))
+            wu_headers = {**warmup_headers, "Sec-Fetch-Site": "same-origin",
+                          "Referer": WARMUP_URLS[i - 1]}
+        try:
+            resp = session.get(warmup_url, headers=wu_headers, timeout=15, allow_redirects=True)
+            if resp.status_code == 200:
+                log(f"  🔥 Warm-up OK [{chrome_key}] step {i+1}/{len(WARMUP_URLS)} — cookies: {len(session.cookies)} set")
+            else:
+                log(f"  ⚠ Warm-up [{resp.status_code}] — lanjut tanpa cookies")
+        except Exception as e:
+            log(f"  ⚠ Warm-up error: {str(e)[:60]}")
+        # Jeda antar halaman: simulasi user membaca halaman sebelum navigasi berikutnya
+        time.sleep(random.uniform(1.5, 3.0))
+
     return session, chrome_key
 
 
@@ -128,6 +127,14 @@ def _download_single(session, url: str, save_path: str, chrome_key: str,
 
     for attempt in range(1, MAX_RETRIES + 1):
         try:
+            # HEAD dulu untuk mendapat __cf_bm cookie Cloudflare pada path ini,
+            # lalu GET — ini mencegah 403/connection reset pada emiten pertama
+            try:
+                session.head(url, headers=headers, timeout=15, allow_redirects=True)
+                time.sleep(random.uniform(0.8, 1.5))
+            except Exception:
+                pass  # HEAD gagal tidak masalah, lanjut GET
+
             resp = session.get(url, headers=headers, timeout=60, allow_redirects=True)
 
             if resp.status_code == 200:
@@ -149,7 +156,6 @@ def _download_single(session, url: str, save_path: str, chrome_key: str,
 
             elif resp.status_code in (403, 429):
                 if attempt < MAX_RETRIES:
-                    # Wait singkat, ganti Chrome profile, lanjutkan dengan session yang ada
                     wait = 4 * attempt + random.uniform(1, 4)
                     new_key = random.choice([k for k in CHROME_KEYS if k != chrome_key])
                     log(f"  🔒 {resp.status_code} — Switch ke {new_key}, wait {wait:.0f}s...")
@@ -193,6 +199,7 @@ def download_all(links_file: str, output_folder: str,
         else: print(msg)
 
     stats = {"success": 0, "not_found": 0, "bot_detected": 0, "failed": 0, "skipped": 0}
+    not_found_list = []
     os.makedirs(output_folder, exist_ok=True)
 
     if not os.path.exists(links_file):
@@ -251,8 +258,9 @@ def download_all(links_file: str, output_folder: str,
             time.sleep(random.uniform(0.5, 1.5))
 
         elif result == "not_found":
-            log(f"  — 404")
+            log(f"  ⚠ Laporan keuangan tidak tersedia ({company_code}) — 404")
             stats["not_found"] += 1
+            not_found_list.append(company_code)
             time.sleep(random.uniform(0.2, 0.6))
 
         elif result == "bot_detected":
@@ -276,10 +284,23 @@ def download_all(links_file: str, output_folder: str,
     except Exception:
         pass
 
+    # Simpan daftar emiten yang tidak punya laporan keuangan ke file
+    if not_found_list:
+        not_found_path = os.path.join(output_folder, "00_tidak_tersedia.txt")
+        try:
+            with open(not_found_path, "w", encoding="utf-8") as f:
+                f.write("# Emiten tanpa laporan keuangan (404 — file tidak ditemukan di IDX)\n")
+                f.write(f"# Total: {len(not_found_list)} emiten\n\n")
+                for code in not_found_list:
+                    f.write(f"{code}\n")
+            log(f"⚠ Daftar {len(not_found_list)} emiten tidak tersedia → {not_found_path}")
+        except Exception:
+            pass
+
     log(f"\n{'='*40}")
     log(f"✓ Berhasil  : {stats['success']}")
     log(f"⏭ Skip      : {stats['skipped']}")
-    log(f"— Tdk ada   : {stats['not_found']}")
+    log(f"⚠ Tdk ada   : {stats['not_found']}")
     log(f"🔒 Bot block : {stats['bot_detected']}")
     log(f"✗ Gagal     : {stats['failed']}")
     return stats

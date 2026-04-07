@@ -48,7 +48,6 @@ def export_to_excel(csv_path: str, excel_path: str = None, log_callback=None) ->
                 ws.column_dimensions[col_cells[0].column_letter].width = min(max_len + 2, 40)
 
         log(f"✓ Excel berhasil dibuat   : {excel_path}")
-        log(f"✓ CSV tetap tersimpan     : {csv_path}")
         return excel_path
 
     except Exception as e:
